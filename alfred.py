@@ -5,8 +5,7 @@ from slackeventsapi import SlackEventAdapter
 import ssl as ssl_lib
 import certifi
 
-from tokens import SIGNING_SECRET
-from tokens import SLACK_TOKEN
+from tokens import SIGNING_SECRET, SLACK_TOKEN, JIRA_SERVER, JIRA_USER, JIRA_TOKEN
 from jira import JIRA
 from httpRequests import getUserName
 import responses
@@ -23,18 +22,13 @@ slack_events_adapter = SlackEventAdapter(SIGNING_SECRET, "/slack/events", app)
 slack_web_client = WebClient(token=SLACK_TOKEN, ssl=ssl_context)
 
 # Connect with JIRA
-jirabotToken = '3snTUdxtAfiNCqJ3bdb024A2'
-options = {'server': 'https://topgunsbots.atlassian.net/'}
-jira = JIRA(options=options, basic_auth=('topgunbots@gmail.com', jirabotToken))
+options = {'server': JIRA_SERVER}
+jira = JIRA(options=options, basic_auth=(JIRA_USER, JIRA_TOKEN))
 
 
 message_IDs = set()
 
 user_states = {}
-
-
-
-
 
 
 
@@ -82,8 +76,8 @@ def message(payload):
     if event.get('bot_id') is None:
         messageID = event['client_msg_id']
         if messageID in message_IDs:
-            return # exit, don't do the stuff below
-        # this stuff only happens when the if statement is false
+            return
+
         message_IDs.add(messageID)
     
         channel_id = event["channel"]
@@ -95,42 +89,21 @@ def message(payload):
         }
 
 
-        if user_id not in user_states.keys():
-            user_states[user_id] = {'hey_alfred': False}
+        # if user_id not in user_states.keys():
+        #     user_states[user_id] = {'hey_alfred': False}
 
 
         if 'hey alfred' in text.lower():
             response_message["blocks"] = responses.heyAlfredResponse(user_id)
-            user_states[user_id]['hey_alfred'] = True
-        else:
-            if user_states[user_id]['hey_alfred'] == True:
-                if 'dad joke' in text.lower():
-                    response_message["blocks"] = responses.dadJoke()
-                else:
-                    response_message["blocks"] = responses.jiraResponse(user_id, text)
-                    createJiraIssue(user_id, text)
-            else:
-                # This means the user sent a message not containing "Hey Alfred"
-                # And they've never said "Hey Alfred" before
-                response_message["blocks"] = responses.heyAlfredPrompt(user_id)
+        elif 'dad joke' in text.lower():
+            response_message["blocks"] = responses.dadJoke()
+        elif 'support' in text.lower():
+            response_message["blocks"] = responses.jiraResponse(user_id, text)
+            createJiraIssue(user_id, text)
+        
 
         slack_web_client.chat_postMessage(**response_message)
         
         
-
-
-        
-
-
-
 if __name__ == "__main__":
-    # logger = logging.getLogger()
-    # logger.setLevel(logging.DEBUG)
-    # logger.addHandler(logging.StreamHandler())
-    
     app.run(port=3000)
-    
-    
-    
-     
-    
